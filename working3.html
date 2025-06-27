@@ -38,7 +38,7 @@
       const VMIN       = Math.min(window.innerWidth, window.innerHeight);
       const SIZE       = VMIN * 0.8;
 
-      // ─── All your assets ────────────────────────────────────────────────
+      // ─── All asset URLs ─────────────────────────────────────────────────────
       const TILE_URLS = [
         "https://lidogotsongs.com/wp-content/uploads/2025/06/DD-ALBUM-ART-1.jpg",
         "https://lidogotsongs.com/wp-content/uploads/2025/06/DD-ALBUM-ART-2.jpg",
@@ -86,22 +86,22 @@
       const START_BTN   = "https://lidogotsongs.com/wp-content/uploads/2025/06/start.png";
       const TEASER_SET  = new Set([]); // optional teaser tile indices
 
-      // ─── Build & shuffle the tileMap ────────────────────────────────────
+      // ─── Build & shuffle tileMap ─────────────────────────────────────────
       const COUNT = TILE_URLS.length;
       const COLS  = Math.ceil(Math.sqrt(COUNT));
       const ROWS  = Math.ceil(COUNT / COLS);
       const SHUF  = Phaser.Utils.Array.Shuffle([...Array(COUNT).keys()]);
-      let tileMap = [], p=0;
-      for(let y=0; y<ROWS; y++){
-        tileMap[y]=[];
-        for(let x=0; x<COLS; x++){
-          tileMap[y][x] = p<COUNT?SHUF[p++]:null;
+      let tileMap = [], p = 0;
+      for (let y = 0; y < ROWS; y++) {
+        tileMap[y] = [];
+        for (let x = 0; x < COLS; x++) {
+          tileMap[y][x] = p < COUNT ? SHUF[p++] : null;
         }
       }
-      let currentCol = Phaser.Math.Between(0,COLS-1),
-          currentRow = Phaser.Math.Between(0,ROWS-1);
+      let currentCol = Phaser.Math.Between(0, COLS - 1),
+          currentRow = Phaser.Math.Between(0, ROWS - 1);
 
-      // ─── Start Scene ────────────────────────────────────────────────────
+      // ─── StartScene ─────────────────────────────────────────────────────
       class StartScene extends Phaser.Scene {
         constructor(){ super('StartScene'); }
         preload(){ this.load.image('startBtn', START_BTN); }
@@ -113,16 +113,16 @@
         }
       }
 
-      // ─── Main Scene ─────────────────────────────────────────────────────
+      // ─── MainScene ──────────────────────────────────────────────────────
       class MainScene extends Phaser.Scene {
         constructor(){ super('MainScene'); }
 
         preload(){
           const { width, height } = this.cameras.main;
-          const pb = this.add.graphics().fillStyle(0x222222, .8)
+          const pb = this.add.graphics().fillStyle(0x222222,0.8)
                         .fillRect(width/2-160, height/2-14, 320, 32);
           const bar = this.add.graphics();
-          const txt = this.add.text(width/2, height/2-40, 'Loading 0%', {
+          const txt = this.add.text(width/2, height/2-40,'Loading 0%',{
             font:'20px monospace', fill:'#000'
           }).setOrigin(0.5);
 
@@ -133,6 +133,7 @@
           });
           this.load.on('complete', ()=>{ pb.destroy(); bar.destroy(); txt.destroy(); });
 
+          this.load.cors = true;
           TILE_URLS.forEach((u,i)=> this.load.image(`tile${i}`, u));
           ['up','down','left','right'].forEach(d=>{
             this.load.image(`spr-${d}`,        `https://lidogotsongs.com/wp-content/uploads/2025/06/${d}.png`);
@@ -150,13 +151,13 @@
           this.maskG = this.make.graphics({ x:0,y:0 }, false);
           this.tileImg.setMask(new Phaser.Display.Masks.GeometryMask(this, this.maskG));
 
-          this.rawAudio  = RAW_URLS .map(u=>{let a=new Audio(u);a.loop=true;return a;});
-          this.distAudio = DIST_URLS.map(u=>{let a=new Audio(u);a.loop=true;return a;});
-          this.tagAudio  = new Audio(TAG_URL);
-          this.failAudio = new Audio(FAILURE_URL);
+          this.rawAudio  = RAW_URLS .map(u=>{ let a=new Audio(); a.crossOrigin='anonymous'; a.src=u; a.loop=true; return a; });
+          this.distAudio = DIST_URLS.map(u=>{ let a=new Audio(); a.crossOrigin='anonymous'; a.src=u; a.loop=true; return a; });
+          this.tagAudio  = new Audio(); this.tagAudio.crossOrigin='anonymous'; this.tagAudio.src=TAG_URL;
+          this.failAudio = new Audio(); this.failAudio.crossOrigin='anonymous'; this.failAudio.src=FAILURE_URL;
 
           this.entryPos    = Array(COUNT).fill(null);
-          this.entryPos[idx]= { x:6,y:6 };
+          this.entryPos[idx]= { x:6, y:6 };
           this.revealedMap = { [idx]: new Set() };
 
           this.distAudio[idx].volume = 1; this.distAudio[idx].play();
@@ -168,7 +169,9 @@
               frames:[
                 { key:`spr-${d}-step-1` },
                 { key:`spr-${d}-step-2` }
-              ], frameRate:5, repeat:0
+              ],
+              frameRate: 5,
+              repeat:   0
             });
           });
 
@@ -176,7 +179,7 @@
             6*this.cellSize,
             6*this.cellSize,
             'spr-down'
-          ).setOrigin(0).setDisplaySize(this.cellSize,this.cellSize);
+          ).setOrigin(0).setDisplaySize(this.cellSize, this.cellSize);
 
           this.player.on('animationcomplete', anim=>{
             const dir = anim.key.split('-')[1];
@@ -188,16 +191,16 @@
           this.revealCell(6,6);
         }
 
-        update(t){
-          if(t - this.lastTime < MOVE_DELAY) return;
+        update(time){
+          if (time - this.lastTime < MOVE_DELAY) return;
           let dx=0, dy=0, dir=null;
           const c = this.cursors;
-          if(c.left.isDown)  { dx=-1; dir='left'; }
-          if(c.right.isDown) { dx= 1; dir='right'; }
-          if(c.up.isDown)    { dy=-1; dir='up';    }
-          if(c.down.isDown)  { dy= 1; dir='down';  }
-          if(!dx&&!dy) return;
-          this.lastTime = t;
+          if (c.left.isDown)  { dx=-1; dir='left'; }
+          if (c.right.isDown) { dx= 1; dir='right';}
+          if (c.up.isDown)    { dy=-1; dir='up';   }
+          if (c.down.isDown)  { dy= 1; dir='down'; }
+          if (!dx && !dy) return;
+          this.lastTime = time;
 
           const idx = tileMap[currentRow][currentCol];
           const cx  = Math.floor(this.player.x/this.cellSize);
@@ -205,70 +208,71 @@
           let nx = cx+dx, ny = cy+dy;
           const wrapped = nx<0||nx>=GRID||ny<0||ny>=GRID;
 
-          if(!wrapped && TEASER_SET.has(idx)){
+          if (!wrapped && TEASER_SET.has(idx)) {
             const key = `${nx},${ny}`;
-            if(this.revealedMap[idx].has(key)){
+            if (this.revealedMap[idx].has(key)) {
               this.revealedMap[idx].clear();
               this.maskG.clear();
-              this.failAudio.currentTime=0; this.failAudio.play();
-              const e=this.entryPos[idx];
-              this.player.x=e.x*this.cellSize;
-              this.player.y=e.y*this.cellSize;
-              this.distAudio[idx].volume=1;
-              this.rawAudio[idx].volume=0;
+              this.failAudio.currentTime = 0; this.failAudio.play();
+              const e = this.entryPos[idx];
+              this.player.x = e.x*this.cellSize;
+              this.player.y = e.y*this.cellSize;
+              this.distAudio[idx].volume = 1;
+              this.rawAudio[idx].volume  = 0;
               return;
             }
           }
 
-          if(wrapped){
+          if (wrapped) {
             this.rawAudio[idx]._saved  = this.rawAudio[idx].currentTime;
             this.distAudio[idx]._saved = this.distAudio[idx].currentTime;
             this.rawAudio[idx].pause(); this.distAudio[idx].pause();
-            this.tagAudio.currentTime=0; this.tagAudio.play();
+            this.tagAudio.currentTime = 0; this.tagAudio.play();
 
-            currentCol=(currentCol+(dx||0)+COLS)%COLS;
-            currentRow=(currentRow+(dy||0)+ROWS)%ROWS;
-            const newIdx=tileMap[currentRow][currentCol];
+            currentCol = (currentCol+(dx||0)+COLS)%COLS;
+            currentRow = (currentRow+(dy||0)+ROWS)%ROWS;
+            const newIdx = tileMap[currentRow][currentCol];
 
-            this.entryPos[newIdx]={ 
+            this.entryPos[newIdx] = {
               x: dx<0?GRID-1:dx>0?0:cx,
               y: dy<0?GRID-1:dy>0?0:cy
             };
 
             this.tileImg.setTexture(`tile${newIdx}`);
             this.maskG.clear();
-            if(!this.revealedMap[newIdx]) this.revealedMap[newIdx]=new Set();
-            this.revealedMap[newIdx].forEach(c=>{
-              const [rx,ry]=c.split(',').map(Number);
+            if (!this.revealedMap[newIdx]) this.revealedMap[newIdx] = new Set();
+            this.revealedMap[newIdx].forEach(c => {
+              const [rx,ry] = c.split(',').map(Number);
               this.maskG.fillRect(rx*this.cellSize, ry*this.cellSize, this.cellSize, this.cellSize);
             });
-            const p2=this.revealedMap[newIdx].size/(GRID*GRID);
+            const p2 = this.revealedMap[newIdx].size/(GRID*GRID);
 
-            this.distAudio[newIdx].currentTime=this.distAudio[newIdx]._saved||0;
-            this.distAudio[newIdx].volume     =Math.min(1,Math.max(0,1-p2));
+            this.distAudio[newIdx].currentTime = this.distAudio[newIdx]._saved || 0;
+            this.distAudio[newIdx].volume      = Math.min(1, Math.max(0, 1-p2));
             this.distAudio[newIdx].play();
-            this.rawAudio[newIdx].currentTime =this.rawAudio[newIdx]._saved||0;
-            this.rawAudio[newIdx].volume      =Math.min(1,Math.max(0,p2));
+            this.rawAudio[newIdx].currentTime  = this.rawAudio[newIdx]._saved || 0;
+            this.rawAudio[newIdx].volume       = Math.min(1, Math.max(0, p2));
             this.rawAudio[newIdx].play();
 
-            nx=this.entryPos[newIdx].x; 
-            ny=this.entryPos[newIdx].y;
+            nx = this.entryPos[newIdx].x;
+            ny = this.entryPos[newIdx].y;
           }
 
-          this.player.x=nx*this.cellSize;
-          this.player.y=ny*this.cellSize;
+          this.player.x = nx*this.cellSize;
+          this.player.y = ny*this.cellSize;
           this.player.play(`walk-${dir}`, true);
           this.revealCell(nx,ny);
         }
 
-        revealCell(x,y){
-          const idx=tileMap[currentRow][currentCol], key=`${x},${y}`;
-          if(!this.revealedMap[idx].has(key)){
+        revealCell(x,y) {
+          const idx = tileMap[currentRow][currentCol],
+                key = `${x},${y}`;
+          if (!this.revealedMap[idx].has(key)) {
             this.revealedMap[idx].add(key);
             this.maskG.fillRect(x*this.cellSize, y*this.cellSize, this.cellSize, this.cellSize);
-            const p=this.revealedMap[idx].size/(GRID*GRID);
-            this.rawAudio[idx].volume  =Math.min(1,Math.max(0,p));
-            this.distAudio[idx].volume=Math.min(1,Math.max(0,1-p));
+            const p = this.revealedMap[idx].size/(GRID*GRID);
+            this.rawAudio[idx].volume  = Math.min(1, Math.max(0, p));
+            this.distAudio[idx].volume = Math.min(1, Math.max(0, 1-p));
           }
         }
       }
@@ -280,7 +284,8 @@
         height: SIZE,
         backgroundColor: '#ffffff',
         scene: [ StartScene, MainScene ],
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        loader: { crossOrigin: 'anonymous' }
       });
     });
   </script>
